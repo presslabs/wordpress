@@ -21,11 +21,24 @@ class WP_Image_Editor_Imagick extends WP_Image_Editor {
 	 */
 	protected $image;
 
+	/**
+	 * Generated temporary files
+	 *
+	 * @var array
+	 */
+	private $_tmp;
+
 	public function __destruct() {
 		if ( $this->image instanceof Imagick ) {
 			// we don't need the original in memory anymore
 			$this->image->clear();
 			$this->image->destroy();
+		}
+		// if we have processed files from stream wrappers remove the local copies
+		if ( is_array( $this->_tmp ) ) {
+			foreach ( $this->_tmp as $tmpfile ) {
+				@unlink( $tmpfile );
+			}
 		}
 	}
 
@@ -133,6 +146,20 @@ class WP_Image_Editor_Imagick extends WP_Image_Editor {
 		if ( ! is_file( $this->file ) && ! preg_match( '|^https?://|', $this->file ) )
 			return new WP_Error( 'error_loading_image', __('File doesn&#8217;t exist?'), $this->file );
 
+		$local_file = $this->file;
+		if ( wp_is_stream( $this->file ) ) {
+			$local_file = wp_tempnam();
+
+			if ( empty( $this->_tmp ) ) {
+				$this->_tmp = array();
+			}
+			$this->_tmp[] = $local_file;
+
+			if ( false === @copy( $this->file, $local_file ) ) {
+				return new WP_Error( 'error_loading_image', __( 'File doesn&#8217;t exist?' ), error_get_last() );
+			}
+		}
+
 		/*
 		 * Even though Imagick uses less PHP memory than GD, set higher limit
 		 * for users that have low PHP.ini limits.
@@ -142,10 +169,10 @@ class WP_Image_Editor_Imagick extends WP_Image_Editor {
 		try {
 			$this->image = new Imagick();
 			$file_extension = strtolower( pathinfo( $this->file, PATHINFO_EXTENSION ) );
-			$filename = $this->file;
+			$filename = $local_file;
 
 			if ( 'pdf' == $file_extension ) {
-				$filename = $this->pdf_setup();
+				$filename = $this->pdf_setup( $local_file );
 			}
 
 			// Reading image after Imagick instantiation because `setResolution`
@@ -633,7 +660,7 @@ class WP_Image_Editor_Imagick extends WP_Image_Editor {
 		}
 
 		// Set correct file permissions
-		$stat = stat( dirname( $filename ) );
+		$stat = stat( trailingslashit ( dirname( $filename ) ) );
 		$perms = $stat['mode'] & 0000666; //same permissions as parent folder, strip off the executable bits
 		@ chmod( $filename, $perms );
 
@@ -735,18 +762,45 @@ class WP_Image_Editor_Imagick extends WP_Image_Editor {
 	 *
 	 * @return string|WP_Error File to load or WP_Error on failure.
 	 */
-	protected function pdf_setup() {
+	protected function pdf_setup( $local_file ) {
 		try {
 			// By default, PDFs are rendered in a very low resolution.
 			// We want the thumbnail to be readable, so increase the rendering DPI.
 			$this->image->setResolution( 128, 128 );
 
 			// Only load the first page.
-			return $this->file . '[0]';
+			return $local_file . '[0]';
 		}
 		catch ( Exception $e ) {
 			return new WP_Error( 'pdf_setup_failed', $e->getMessage(), $this->file );
 		}
 	}
 
+	/**
+	 * Either calls editor's save function or handles file as a stream.
+	 *
+	 * @param string|stream $filename
+	 * @param callable $function
+	 * @param array $arguments
+	 * @return bool
+	 */
+	protected function make_image( $filename, $function, $arguments ) {
+		if ( wp_is_stream( $filename ) ) {
+			$tmp = wp_tempnam();
+			if ( empty( $this->_tmp ) ) {
+				$this->_tmp = array();
+			}
+			$this->_tmp[] = $tmp;
+
+			$arguments[0] = $tmp;
+		}
+
+		if ( ! parent::make_image( $filename, $function, $arguments ) ) {
+			return false;
+		}
+
+		if ( wp_is_stream( $filename ) ) {
+			return copy( $tmp, $filename );
+		}
+	}
 }
