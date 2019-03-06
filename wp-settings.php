@@ -80,8 +80,12 @@ wp_debug_mode();
  *                                    Default true.
  */
 if ( WP_CACHE && apply_filters( 'enable_loading_advanced_cache_dropin', true ) ) {
-	// For an advanced caching plugin to use. Uses a static drop-in because you would only want one.
-	WP_DEBUG ? include( WP_CONTENT_DIR . '/advanced-cache.php' ) : @include( WP_CONTENT_DIR . '/advanced-cache.php' );
+	if ( file_exists( WP_OEM_DIR . '/advanced-cache.php' ) ) {
+		WP_DEBUG ? include( WP_OEM_DIR . '/advanced-cache.php' ) : @include( WP_OEM_DIR . '/advanced-cache.php' );
+	} else {
+		// For an advanced caching plugin to use. Uses a static drop-in because you would only want one.
+		WP_DEBUG ? include( WP_CONTENT_DIR . '/advanced-cache.php' ) : @include( WP_CONTENT_DIR . '/advanced-cache.php' );
+	}
 
 	// Re-initialize any hooks added manually by advanced-cache.php
 	if ( $wp_filter ) {

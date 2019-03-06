@@ -864,7 +864,7 @@ function _wp_handle_upload( &$file, $overrides, $time, $action ) {
 	}
 
 	// Set correct file permissions.
-	$stat  = stat( dirname( $new_file ) );
+	$stat = stat( trailingslashit( dirname( $new_file ) ) );
 	$perms = $stat['mode'] & 0000666;
 	@ chmod( $new_file, $perms );
 
