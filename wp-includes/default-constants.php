@@ -67,6 +67,9 @@ function wp_initial_constants() {
 		define( 'WP_CONTENT_DIR', ABSPATH . 'wp-content' ); // no trailing slash, full paths only - WP_CONTENT_URL is defined further down
 	}
 
+	if ( !defined('WP_OEM_DIR') )
+		define( 'WP_OEM_DIR', dirname( WP_CONTENT_DIR ) . DIRECTORY_SEPARATOR . 'oem' ); // no trailing slash, full paths only
+
 	// Add define('WP_DEBUG', true); to wp-config.php to enable display of notices during development.
 	if ( ! defined( 'WP_DEBUG' ) ) {
 		define( 'WP_DEBUG', false );
@@ -146,6 +149,9 @@ function wp_plugin_directory_constants() {
 	if ( ! defined( 'WP_CONTENT_URL' ) ) {
 		define( 'WP_CONTENT_URL', get_option( 'siteurl' ) . '/wp-content' ); // full url - WP_CONTENT_DIR is defined further up
 	}
+
+	if ( !defined('WP_OEM_URL') )
+		define( 'WP_OEM_URL', dirname( WP_CONTENT_URL ) . '/oem'); // full url - WP_OEM_DIR is defined further up
 
 	/**
 	 * Allows for the plugins directory to be moved from the default location.

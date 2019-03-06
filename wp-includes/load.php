@@ -139,7 +139,7 @@ function wp_check_php_mysql_versions() {
 		die( sprintf( __( 'Your server is running PHP version %1$s but WordPress %2$s requires at least %3$s.' ), $php_version, $wp_version, $required_php_version ) );
 	}
 
-	if ( ! extension_loaded( 'mysql' ) && ! extension_loaded( 'mysqli' ) && ! extension_loaded( 'mysqlnd' ) && ! file_exists( WP_CONTENT_DIR . '/db.php' ) ) {
+	if ( ! extension_loaded( 'mysql' ) && ! extension_loaded( 'mysqli' ) && ! extension_loaded( 'mysqlnd' ) && ! ( file_exists( WP_OEM_DIR . '/db.php' ) || file_exists( WP_CONTENT_DIR . '/db.php' ) ) ) {
 		wp_load_translations_early();
 
 		$protocol = wp_get_server_protocol();
@@ -419,7 +419,9 @@ function require_wp_db() {
 	global $wpdb;
 
 	require_once( ABSPATH . WPINC . '/wp-db.php' );
-	if ( file_exists( WP_CONTENT_DIR . '/db.php' ) ) {
+	if ( file_exists( WP_OEM_DIR . '/db.php' ) ) {
+		require_once( WP_OEM_DIR . '/db.php' );
+	} elseif ( file_exists( WP_CONTENT_DIR . '/db.php' ) ) {
 		require_once( WP_CONTENT_DIR . '/db.php' );
 	}
 
@@ -541,6 +543,12 @@ function wp_start_object_cache() {
 	global $wp_filter;
 	static $first_init = true;
 
+	if ( file_exists( WP_OEM_DIR . '/object-cache.php' ) ) {
+		$_ext_obj_cache_file = WP_OEM_DIR . '/object-cache.php';
+	} else {
+		$_ext_obj_cache_file = WP_CONTENT_DIR . '/object-cache.php';
+	}
+
 	// Only perform the following checks once.
 	if ( $first_init ) {
 		if ( ! function_exists( 'wp_cache_init' ) ) {
@@ -552,8 +560,8 @@ function wp_start_object_cache() {
 			 * results in a wp_cache_init() function existing, we note
 			 * that an external object cache is being used.
 			 */
-			if ( file_exists( WP_CONTENT_DIR . '/object-cache.php' ) ) {
-				require_once( WP_CONTENT_DIR . '/object-cache.php' );
+			if ( file_exists( $_ext_obj_cache_file ) ) {
+				require_once( $_ext_obj_cache_file );
 				if ( function_exists( 'wp_cache_init' ) ) {
 					wp_using_ext_object_cache( true );
 				}
@@ -563,7 +571,7 @@ function wp_start_object_cache() {
 					$wp_filter = WP_Hook::build_preinitialized_hooks( $wp_filter );
 				}
 			}
-		} elseif ( ! wp_using_ext_object_cache() && file_exists( WP_CONTENT_DIR . '/object-cache.php' ) ) {
+		} elseif ( ! wp_using_ext_object_cache() && file_exists( $_ext_obj_cache_file ) ) {
 			/*
 			 * Sometimes advanced-cache.php can load object-cache.php before
 			 * this function is run. This breaks the function_exists() check
@@ -639,7 +647,10 @@ function wp_not_installed() {
  */
 function wp_get_mu_plugins() {
 	$mu_plugins = array();
-	if ( ! is_dir( WPMU_PLUGIN_DIR ) ) {
+	if ( file_exists( WP_OEM_DIR . '/mu-plugin.php' ) ) {
+		$mu_plugins[] = WP_OEM_DIR . '/mu-plugin.php';
+	}
+	if ( !is_dir( WPMU_PLUGIN_DIR ) ) {
 		return $mu_plugins;
 	}
 	if ( ! $dh = opendir( WPMU_PLUGIN_DIR ) ) {
